@@ -36,8 +36,8 @@ python -m src.content.trending_collector
 ```
 
 采集器会自动执行：
-1. 使用 Playwright 启动浏览器，依次搜索小红书的 5 个关键词（杭州租房、杭州租房攻略、杭州租房避坑、杭州整租、杭州合租）
-2. 搜索抖音的 3 个关键词（杭州租房、杭州租房vlog、杭州看房）
+1. 使用 Playwright 启动浏览器，依次搜索小红书的 6 个关键词（杭州租房、杭州租房攻略、杭州租房避坑、杭州整租、杭州合租、杭州转租）
+2. 搜索抖音的 4 个关键词（杭州租房、杭州租房vlog、杭州看房、杭州转租）
 3. 按热度排序，采集高互动帖子数据
 4. 将结果保存到 `data/trending/` 目录，文件名为 `xiaohongshu_YYYY-MM-DD.json` 和 `douyin_YYYY-MM-DD.json`
 
