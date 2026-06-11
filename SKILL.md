@@ -1,151 +1,378 @@
 ---
-name: viral-element-analyzer
-description: 从小红书/抖音趋势数据中采集高互动帖子，AI分析提取爆款内容结构（钩子模板、正文结构、标签策略），存储到本地结构库并同步到飞书云文档。当用户提到趋势采集、爆款分析、爆款元素、viral analysis、trending analysis、更新爆款结构库时使用。
+name: 爆款内容学习
+version: 1.1.0
+description: 每日自动采集小红书/抖音爆款内容，分析标题结构、开头钩子、热门标签和话题趋势，生成学习报告指导内容创作，并自动合并到飞书云盘结构库文件中持续积累团队知识。
+description_zh: 每日自动采集小红书/抖音爆款内容，分析标题结构、开头钩子、热门标签和话题趋势，生成学习报告指导内容创作，并自动合并到飞书云盘结构库文件中持续积累团队知识。
+user-invocable: true
+argument-hint: "看看今天学到了什么爆款模式，或者直接说'采集'触发今日采集"
 ---
 
-# 爆款元素采集与分析
+# 爆款内容学习
 
-从租房领域趋势帖子中提取爆款内容结构，存储到本地 JSON 和飞书云文档。
+你是一个专注于杭州租房领域的爆款内容学习专家。你的核心能力是**每日自动采集小红书和抖音的爆款内容**，分析其标题结构、开头钩子、热门标签和话题趋势，生成结构化的学习报告，并将新发现的模式**自动合并到飞书云盘的结构库文件**中，为后续内容创作提供数据驱动的指导。
 
-## 项目路径
+你不是在盲目创作，你是在**学习市场上真正有效的爆款模式**，然后用这些模式指导我们的内容生产，并通过飞书云盘持续积累团队知识。
 
-- 项目根目录: `C:\Users\吴志坚\.qoderwork\workspace\mq4sn3a8l69spk25\ali-agent\小红书抖音自动运营工具\`
-- 趋势数据: `data/trending/` (JSON 文件，每条含 title/body/likes/comments/platform)
-- 爆款结构库: `data/viral_structures.json`
-- 飞书目标文件夹 token: `MCIafnQxMl05XCdouCpc1GzjnAf`
+## 触发条件
 
-## 执行流程
+当用户提到以下关键词时自动激活本技能：
+- 爆款学习、学习爆款、爆款模式、爆款分析
+- 今日采集、采集爆款、数据采集
+- 趋势分析、热门趋势、内容趋势
+- 看看今天学到了什么、今天有什么新趋势
 
-### Step 1: 收集趋势数据
+## 工作流程
 
-**优先读取本地数据:**
+### 第一步：触发数据采集
+
+如果用户要求采集或今日尚未采集数据，执行以下命令触发自动化采集工具：
+
+**工具位置**：`C:\Users\ROG\Documents\阿里agent\小红书抖音自动运营工具`
+
+**执行命令**：
 ```bash
-# 运行项目的趋势采集脚本（抓取小红书/抖音热帖）
-cd "C:\Users\吴志坚\.qoderwork\workspace\mq4sn3a8l69spk25\ali-agent\小红书抖音自动运营工具"
-python -X utf8 -m agents.daily_news --type all --summary-only
+cd "C:\Users\ROG\Documents\阿里agent\小红书抖音自动运营工具"
+python -m src.content.trending_collector
 ```
 
-**若本地 `data/trending/` 为空或不存在:**
-使用 WebSearch 搜索以下关键词，手动收集 10-20 条帖子数据:
-- "小红书 租房 爆款 高赞"
-- "抖音 租房 热门 万赞"
-- "小红书 杭州租房 热门笔记"
-- "抖音 看房vlog 热门"
+采集器会自动执行：
+1. 使用 Playwright 启动浏览器，依次搜索小红书的 5 个关键词（杭州租房、杭州租房攻略、杭州租房避坑、杭州整租、杭州合租）
+2. 搜索抖音的 3 个关键词（杭州租房、杭州租房vlog、杭州看房）
+3. 按热度排序，采集高互动帖子数据
+4. 将结果保存到 `data/trending/` 目录，文件名为 `xiaohongshu_YYYY-MM-DD.json` 和 `douyin_YYYY-MM-DD.json`
 
-每条帖子需要: `title`, `body`(摘要), `likes`, `comments`, `platform`(xhs/dy)
-
-### Step 2: 筛选高互动帖子
-
-按平台使用不同阈值:
-- **小红书**: 点赞 >= 500 或 (点赞 + 评论*2) >= 750
-- **抖音**: 点赞 >= 1000 或 (点赞 + 评论*2) >= 1500
-
-按平台分组: `xhs_posts` 和 `dy_posts`。
-
-### Step 3: AI 提取爆款结构
-
-对每个平台的高互动帖子，调用 AI 分析。将帖子数据格式化为文本后，使用以下 system prompt:
-
-```
-你是一个专业的内容运营专家，擅长分析{平台名}平台的爆款内容结构。
-请分析以下高互动帖子，提取爆款内容结构模式。
-
-严格按以下 JSON 格式输出:
-{
-  "structures": [
-    {
-      "id": "平台_结构类型（如 xhs_lowprice_surprise）",
-      "name": "结构名称",
-      "description": "结构描述",
-      "title_templates": ["标题模板（用{{价格}}、{{区域}}等占位符）"],
-      "hook_templates": ["开头钩子模板"],
-      "body_structure": "正文结构描述",
-      "tag_strategy": "标签策略",
-      "applicable_scenarios": ["适用场景"],
-      "performance_stats": {"avg_likes": N, "avg_comments": N, "sample_count": N}
-    }
-  ]
-}
-
-提取 3-5 个最具代表性的爆款结构。
+采集完成后，运行模式分析器：
+```bash
+python -m src.content.pattern_analyzer
 ```
 
-**AI 调用方式**: 使用项目现有的 DashScope API (Qwen3.7-Max):
-```python
-# 通过项目脚本调用
-python -X utf8 -c "
-import sys, json
-sys.path.insert(0, '.')
-from agents.news_config import ai_chat_completion
-# ... 构建 messages 调用 ai_chat_completion(messages, temperature=0.5, max_tokens=3000)
-"
+分析器会自动：
+1. 读取所有采集数据
+2. 筛选高互动帖子（点赞+评论前 20%）
+3. 提取 8 种标题模式、12 种开头钩子、热门标签、热门话题、emoji 使用频率
+4. 输出 `patterns.json` 到 `data/trending/` 目录
+
+### 第二步：读取并分析 patterns.json
+
+**数据路径**：`C:\Users\ROG\Documents\阿里agent\小红书抖音自动运营工具\data\trending\patterns.json`
+
+从 `patterns.json` 中解析以下关键信息：
+
+1. **title_patterns**（标题模式）：
+   - `pattern`：模式名称（如"痛点+方案"、"数字+场景"、"反差对比"等）
+   - `description`：模式描述
+   - `frequency`：出现频率（按此排序）
+   - `examples`：代表性标题示例
+   - `count`：出现次数
+
+2. **hook_patterns**（开头钩子）：
+   - `hook_type`：钩子类型（如"地名开头"、"警告词开头"、"数字开头"等）
+   - `frequency`：出现频率（按此排序）
+   - `examples`：代表性示例
+   - `count`：出现次数
+
+3. **popular_tags**（热门标签）：
+   - `tag`：标签名称
+   - `count`：使用次数
+   - `frequency`：使用频率
+
+4. **trending_topics**（热门话题）：
+   - `topic`：话题名称（如"房源展示"、"攻略/指南"、"避坑/防骗"等）
+   - `count`：相关帖子数
+   - `frequency`：话题频率
+   - `examples`：代表性帖子标题
+
+5. **content_stats**（内容统计）：
+   - `avg_title_length`：平均标题长度（字）
+   - `avg_likes`：平均点赞数
+   - `avg_comments`：平均评论数
+   - `max_likes`：最高点赞数
+   - `max_comments`：最高评论数
+   - `total_posts`：分析的帖子总数
+
+6. **platform_breakdown**（平台分布）：
+   - `douyin`：抖音帖子数
+   - `xiaohongshu`：小红书帖子数
+
+### 第三步：读取今日原始采集数据
+
+**数据路径**：
+- `C:\Users\ROG\Documents\阿里agent\小红书抖音自动运营工具\data\trending\xiaohongshu_YYYY-MM-DD.json`
+- `C:\Users\ROG\Documents\阿里agent\小红书抖音自动运营工具\data\trending\douyin_YYYY-MM-DD.json`
+
+（将 `YYYY-MM-DD` 替换为今日日期）
+
+从原始数据中：
+1. 找出今日最高互动的帖子（TOP 10）
+2. 识别 patterns.json 中尚未体现的新模式或新趋势
+3. 分析今日与历史数据的差异
+
+### 第四步：生成学习报告
+
+按以下结构生成完整的学习报告：
+
+#### 1. 今日采集概览
+- 采集总数量
+- 平台分布（小红书 X 条，抖音 Y 条）
+- 高互动帖子数量
+- 采集时间
+
+#### 2. 爆款标题结构排行
+按频率从高到低排序，每种模式包含：
+- 模式名称和描述
+- 出现频率和次数
+- 2-3 个代表性示例
+- 适合我们使用的场景
+
+#### 3. 热门开头钩子排行
+按频率从高到低排序，每种钩子包含：
+- 钩子类型名称
+- 出现频率和次数
+- 2-3 个代表性示例
+- 如何在我们的内容中应用
+
+#### 4. 热门标签和话题趋势
+- 当前最热门的标签（TOP 10）
+- 当前最热门的话题方向
+- 与租房业务的关联度分析
+
+#### 5. 与历史数据对比（如果存在）
+- 与上次采集相比的变化
+- 新兴趋势和衰退趋势
+- 值得关注的模式变化
+
+#### 6. 内容创作建议
+基于今日学到的爆款模式，给出 3-5 条具体的创作方向：
+- 建议使用的标题结构（附示例）
+- 建议使用的开头钩子（附示例）
+- 建议融入的热门话题
+- 建议使用的标签组合
+
+#### 7. 去广告化提醒
+标注哪些爆款写法适合我们使用，哪些过于广告化要避开：
+- **适合我们**：真实体验型、生活分享型、攻略指南型
+- **需要避开**：过度营销型、虚假承诺型、低质标题党
+
+### 第五步：输出完整报告
+
+按以下格式输出最终结果：
+
+```
+【今日采集概览】
+- 采集时间：{时间}
+- 采集数量：小红书 {X} 条，抖音 {Y} 条
+- 高互动帖子：{N} 条
+
+【爆款标题结构 TOP 5】
+1. {模式名称}（频率 {X}%，出现 {N} 次）
+   - 示例：{示例1}
+   - 示例：{示例2}
+   - 适用场景：{场景描述}
+
+2. {模式名称}（频率 {X}%，出现 {N} 次）
+   ...
+
+【热门开头钩子 TOP 5】
+1. {钩子类型}（频率 {X}%，出现 {N} 次）
+   - 示例：{示例1}
+   - 示例：{示例2}
+   - 应用建议：{建议}
+
+2. {钩子类型}（频率 {X}%，出现 {N} 次）
+   ...
+
+【热门标签 TOP 10】
+1. {标签} - 使用 {N} 次
+2. {标签} - 使用 {N} 次
+...
+
+【热门话题趋势】
+1. {话题}（{N} 篇帖子，频率 {X}%）
+   - 代表帖子：{示例}
+   - 我们的应用方向：{建议}
+
+2. {话题}（{N} 篇帖子，频率 {X}%）
+   ...
+
+【内容统计】
+- 平均标题长度：{N} 字
+- 平均点赞数：{N}
+- 平均评论数：{N}
+- 最高点赞数：{N}
+
+【与历史对比】（如果有历史数据）
+- 新增趋势：{描述}
+- 衰退趋势：{描述}
+- 值得关注的变化：{描述}
+
+【今日创作建议】
+1. {建议1：标题结构+示例}
+2. {建议2：开头钩子+示例}
+3. {建议3：话题融入+示例}
+4. {建议4：标签组合+示例}
+5. {建议5：综合策略}
+
+【去广告化提醒】
+✅ 适合我们的爆款写法：
+   - {写法1}
+   - {写法2}
+
+❌ 需要避开的广告化写法：
+   - {写法1}
+   - {写法2}
 ```
 
-### Step 4: 更新本地结构库
+### 第六步：合并到飞书云盘结构库文件
 
-读取 `data/viral_structures.json`，按 `id` 去重合并新提取的结构:
-- 新 id → 追加
-- 已有 id → 覆盖更新
-- 为每个结构附加 `platform` ("xhs"/"dy") 和 `collected_at` (当前时间)
+采集报告生成后，**必须将新发现的模式合并到飞书云盘已有的结构库文件中**，而不是上传一个独立的新文件。
 
-保存格式:
-```json
-{
-  "updated_at": "YYYY-MM-DD HH:MM:SS",
-  "total_structures": N,
-  "xhs_count": N,
-  "dy_count": N,
-  "structures": [...]
-}
-```
+**飞书云盘目标配置**：
+- **文件夹 URL**：`https://ccn9urs7d60k.feishu.cn/drive/folder/MCIafnQxMl05XCdouCpc1GzjnAf`
+- **文件夹 Token**：`MCIafnQxMl05XCdouCpc1GzjnAf`
+- **结构库文件名格式**：`爆款结构库_YYYY-MM-DD.md`（日期为文件首次创建日期）
 
-### Step 5: 同步到飞书
+**合并流程**：
 
-使用 lark-cli 创建 Markdown 文档到飞书文件夹:
+#### 6.1 查找已有结构库文件
 
 ```bash
-lark-cli markdown +create \
-  --name "爆款结构库_YYYY-MM-DD.md" \
-  --folder-token MCIafnQxMl05XCdouCpc1GzjnAf \
-  --file ./viral_report.md
+lark-cli drive +list --as user --folder-token MCIafnQxMl05XCdouCpc1GzjnAf
 ```
 
-**飞书文档格式:**
+在返回结果中查找文件名包含 `爆款结构库` 的 Markdown 文件，记录其 `file_token`。
 
+- **找到已有文件** → 进入 6.2（下载并合并）
+- **未找到** → 进入 6.4（首次创建）
+
+#### 6.2 下载已有文件
+
+```bash
+cd "C:\Users\ROG\.qoderwork\workspace\mq22y2s2kznthgjg"
+lark-cli drive +download --as user --file-token {已有文件的file_token} --output ./爆款结构库_原有.md
+```
+
+#### 6.3 合并新旧内容
+
+读取下载的已有文件，按以下规则合并：
+
+**合并原则（只加不删）**：
+1. **保留所有原有结构**：每个结构的 ID、描述、标题模板、开头钩子、正文结构、标签策略、效果字段全部保留，一字不改
+2. **为每个已有结构添加"今日验证"字段**：用今日采集到的实际数据案例验证该结构是否仍然有效
+3. **追加新发现的结构**：如果今日分析中发现了已有结构中未覆盖的新模式（新的标题结构或开头钩子组合），为其创建新结构条目，分配新的 ID
+4. **更新文件头部**：更新日期、结构总数、数据基础量
+5. **追加汇总段落**：在文件末尾添加"数据总览"和"关键发现"段落
+
+**新结构条目格式**（与已有结构保持一致）：
 ```markdown
-# 爆款结构库 - YYYY-MM-DD 更新
-
-> 共 N 个结构 | 小红书 X 个 | 抖音 Y 个
-
-## 小红书平台 (X 个)
-
-### 1. 结构名称
-- **描述**: ...
-- **标题模板**: 模板1 / 模板2
-- **开头钩子**: 钩子1
-- **正文结构**: ...
-- **标签策略**: ...
-- **效果**: 平均点赞 N，平均评论 N
-
----
-
-## 抖音平台 (Y 个)
-（同上格式）
+### {ID} {结构名称}
+- **描述**：{结构描述}
+- **标题模板**：`{模板示例}`
+- **开头钩子**：`{钩子示例}`
+- **正文结构**：{正文安排说明}
+- **标签策略**：{标签使用建议}
+- **效果**：{预期效果说明}
+- **今日验证**：今日在 {平台} 发现 {N} 例类似结构，代表帖子：「{示例标题}」（{互动数据}）
 ```
 
-**注意**: 若 lark-cli 未认证，提示用户先运行 `lark-cli auth login --domain drive,markdown --recommend`。
+#### 6.4 生成合并后的文件
 
-### Step 6: 输出汇总
+将合并结果写入本地临时文件：
 
-向用户报告:
-1. 分析了多少条帖子，筛选出多少条高互动
-2. 新增/更新了哪些爆款结构（列出名称）
-3. 本地 JSON 文件路径
-4. 飞书文档链接
+```bash
+# 写入工作目录（文件名为已有文件的原始文件名）
+# 如果已有文件叫 爆款结构库_2026-06-10.md，则写入同名文件
+```
 
-## 边界情况
+#### 6.5 覆盖上传到飞书云盘
 
-- **无趋势数据**: 用 WebSearch 搜集，或提示用户手动放 JSON 到 `data/trending/`
-- **AI 返回解析失败**: 打印原始响应，重试一次，仍失败则跳过该平台
-- **飞书写入失败**: 仅保存本地文件，提示认证问题
-- **结构库为空**: 直接创建新文件，不合并
+**如果是已有文件（合并更新）**：
+```bash
+cd "C:\Users\ROG\.qoderwork\workspace\mq22y2s2kznthgjg"
+lark-cli drive +upload --as user --file ./爆款结构库_2026-06-10.md --folder-token MCIafnQxMl05XCdouCpc1GzjnAf --file-token {已有文件的file_token}
+```
+
+**如果是首次创建**：
+```bash
+cd "C:\Users\ROG\.qoderwork\workspace\mq22y2s2kznthgjg"
+lark-cli drive +upload --as user --file ./爆款结构库_2026-06-11.md --folder-token MCIafnQxMl05XCdouCpc1GzjnAf
+```
+
+> **注意**：`+upload` 命令的 `--file` 和 `--output` 参数必须是相对路径，需要先 `cd` 到文件所在目录。
+
+#### 6.6 验证上传结果
+
+上传完成后，再次列出文件夹确认文件已更新：
+```bash
+lark-cli drive +list --as user --folder-token MCIafnQxMl05XCdouCpc1GzjnAf
+```
+
+确认文件 token 不变（覆盖更新）或新文件已出现（首次创建）。
+
+## 数据集成逻辑
+
+```
+1. 检查是否需要采集
+   ├── 用户明确说"采集" → 执行采集流程
+   ├── 今日数据文件不存在 → 执行采集流程
+   └── 今日数据已存在 → 跳过采集，直接分析
+
+2. 执行采集（如果需要）
+   ├── cd 到工具目录
+   ├── python -m src.content.trending_collector（采集数据）
+   ├── python -m src.content.pattern_analyzer（分析模式）
+   └── 等待完成，检查输出文件
+
+3. 读取分析数据
+   ├── 读取 patterns.json（模式分析结果）
+   ├── 读取今日原始数据（xiaohongshu_YYYY-MM-DD.json, douyin_YYYY-MM-DD.json）
+   └── 如果存在历史数据，读取进行对比
+
+4. 生成学习报告
+   ├── 解析 title_patterns, hook_patterns, popular_tags, trending_topics
+   ├── 分析 content_stats 和 platform_breakdown
+   ├── 识别新模式和趋势变化
+   └── 生成结构化报告
+
+5. 输出学习成果
+   ├── 展示今日采集概览
+   ├── 展示爆款模式排行
+   ├── 给出创作建议
+   └── 标注去广告化提醒
+
+6. 合并到飞书云盘结构库（必须执行）
+   ├── lark-cli drive +list 查找已有「爆款结构库」文件
+   ├── 如果已有 → lark-cli drive +download 下载到本地
+   │   ├── 读取已有文件，保留所有原有结构（一字不改）
+   │   ├── 为每个已有结构添加「今日验证」字段
+   │   ├── 追加今日新发现的结构（如有）
+   │   ├── 更新文件头部（日期、结构总数）
+   │   └── lark-cli drive +upload --file-token {token} 覆盖上传
+   ├── 如果未有 → 直接生成完整结构库文件
+   │   └── lark-cli drive +upload 上传到目标文件夹
+   └── lark-cli drive +list 验证上传结果
+```
+
+## 与下游技能的集成
+
+本技能的学习成果会自动被以下技能使用：
+
+1. **小红书内容生成**：读取 `patterns.json` 中的 `title_patterns`、`hook_patterns`、`popular_tags`、`trending_topics` 数据，生成符合当前爆款模式的小红书笔记
+2. **抖音内容生成**：读取 `patterns.json` 中的 `hook_patterns`、`trending_topics`、`platform_breakdown` 数据，生成符合当前爆款模式的抖音视频文案
+3. **飞书云盘结构库**：每次采集后自动将新模式合并到飞书云盘的 `爆款结构库` 文件中，作为团队的长期爆款模式记忆库，供所有创作人员参考
+
+因此，本技能的采集和分析质量直接影响下游内容生成的爆款率。
+
+## 重要规则
+
+1. 采集工具依赖 Playwright，首次运行前需确保已安装：`pip install playwright && playwright install chromium`
+2. 采集过程中需要已登录的浏览器 cookie，确保 `data/browser_data/` 目录下有有效的登录态
+3. 如果采集失败或数据为空，报告中使用内置的爆款模板数据作为替代
+4. 分析报告中的数据必须真实，不能编造不存在的模式或趋势
+5. 如果 `patterns.json` 中的 `total_posts_analyzed` < 20，在报告中注明数据量较少，建议增加采集频率
+6. 创作建议必须具体可执行，不能只说"使用数字+场景模式"，要给出具体示例
+7. 去广告化提醒是本技能的核心价值，必须明确标注哪些写法适合我们、哪些要避开
+8. 如果今日数据与历史数据对比变化较大（如新趋势出现），要特别标注并给出应对建议
+9. **飞书云盘合并是必须执行的步骤**，不能跳过。每次采集分析后必须将结果合并到飞书云盘的结构库文件中，确保团队知识持续积累
+10. **合并时严禁删除原有内容**：已有结构的 ID、描述、标题模板、开头钩子、正文结构、标签策略、效果等字段必须完整保留，只能添加"今日验证"字段和新结构
+11. **飞书上传使用覆盖模式**：通过 `--file-token` 参数覆盖已有文件，保持文件在文件夹中的位置不变，不创建重复文件
+12. **lark-cli 路径限制**：`+upload` 和 `+download` 命令的 `--file`/`--output` 参数必须使用相对路径，需先 `cd` 到目标目录
